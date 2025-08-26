@@ -138,7 +138,13 @@ def save_images_grid(
     ncol = int(np.ceil(n_images / nrow))
 
     fig, axes = plt.subplots(nrow, ncol, figsize=(ncol * 2, nrow * 2))
-    axes = axes.flatten()
+    # Handle case where only one subplot is created
+    if nrow == 1 and ncol == 1:
+        axes = [axes]
+    elif nrow == 1 or ncol == 1:
+        axes = axes.flatten()
+    else:
+        axes = axes.flatten()
 
     # plot images
     for idx, (img, ax) in enumerate(zip(images, axes)):
