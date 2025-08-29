@@ -12,7 +12,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 class UR10ReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 10000
-    save_interval = 50
+    save_interval = 200
     experiment_name = "reach_ur10"
     run_name = ""
     resume = False
@@ -30,10 +30,12 @@ class UR10ReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         entropy_coef=0.01,
         num_learning_epochs=8,
         num_mini_batches=4,
-        learning_rate=1.0e-3,
+        # learning_rate=1.0e-3,
+        learning_rate=5.0e-4,
         schedule="adaptive",
         gamma=0.99,
         lam=0.95,
-        desired_kl=0.01,
+        # desired_kl=0.01,
+        desired_kl=0.008,
         max_grad_norm=1.0,
     )
