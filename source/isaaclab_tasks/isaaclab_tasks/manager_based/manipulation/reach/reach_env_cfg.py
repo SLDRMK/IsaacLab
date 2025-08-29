@@ -97,12 +97,30 @@ class ObservationsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
-
+        history_length = 5
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
-        actions = ObsTerm(func=mdp.last_action)
+        # 添加历史观察以减少噪声影响
+        joint_pos = ObsTerm(
+            func=mdp.joint_pos_rel, 
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            history_length=history_length  # 新增：包含当前和前2步的观察
+        )
+        joint_vel = ObsTerm(
+            func=mdp.joint_vel_rel, 
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            history_length=history_length  # 新增：包含当前和前2步的观察
+        )
+        # joint_pos = ObsTerm(func=mdp.joint_pos_rel)
+        # joint_vel = ObsTerm(func=mdp.joint_vel_rel)
+        pose_command = ObsTerm(
+            func=mdp.generated_commands, 
+            params={"command_name": "ee_pose"},
+            history_length=history_length  # 新增：包含当前和前1步的命令
+        )
+        actions = ObsTerm(
+            func=mdp.last_action,
+            history_length=history_length  # 新增：包含当前和前1步的动作
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
