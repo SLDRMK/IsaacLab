@@ -20,6 +20,7 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+from isaaclab.utils.modifiers import DigitalFilterCfg
 
 import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
 
@@ -89,6 +90,7 @@ class ActionsCfg:
     arm_action: ActionTerm = MISSING
     gripper_action: ActionTerm | None = None
 
+randomization = False
 
 @configclass
 class ObservationsCfg:
@@ -97,33 +99,63 @@ class ObservationsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
-        history_length = 5
-        # observation terms (order preserved)
-        # 添加历史观察以减少噪声影响
-        joint_pos = ObsTerm(
-            func=mdp.joint_pos_rel, 
-            noise=Unoise(n_min=-0.01, n_max=0.01),
-            history_length=history_length  # 新增：包含当前和前(history_length-1)步的观察
-        )
-        joint_vel = ObsTerm(
-            func=mdp.joint_vel_rel, 
-            noise=Unoise(n_min=-0.01, n_max=0.01),
-            history_length=history_length  # 新增：包含当前和前(history_length-1)步的观察
-        )
-        # joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-        # joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        pose_command = ObsTerm(
-            func=mdp.generated_commands, 
-            params={"command_name": "ee_pose"},
-            history_length=history_length  # 新增：包含当前和前(history_length-1)步的命令
-        )
-        actions = ObsTerm(
-            func=mdp.last_action,
-            history_length=history_length  # 新增：包含当前和前(history_length-1)步的动作
-        )
+        if not randomization:
+            joint_pos = ObsTerm(func=mdp.joint_pos_rel)
+            joint_vel = ObsTerm(func=mdp.joint_vel_rel)
+            pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
+            actions = ObsTerm(func=mdp.last_action)
+        else:       
+            history_length = 5
+            # observation terms (order preserved)
+            # 添加历史观察以减少噪声影响
+            joint_pos = ObsTerm(
+                func=mdp.joint_pos_rel, 
+                noise=Unoise(n_min=-0.01, n_max=0.01),
+                history_length=history_length,  # 新增：包含当前和前(history_length-1)步的观察
+                modifiers=[
+                    DigitalFilterCfg(
+                        A=[0.8],  # 低通滤波：y[i] = 0.8*y[i-1] + 0.2*x[i]，平滑高频噪声
+                        B=[0.2]
+                    )
+                ]
+            )
+            joint_vel = ObsTerm(
+                func=mdp.joint_vel_rel, 
+                noise=Unoise(n_min=-0.01, n_max=0.01),
+                history_length=history_length,  # 新增：包含当前和前(history_length-1)步的观察
+                modifiers=[
+                    DigitalFilterCfg(
+                        A=[0.0],           # 移动平均滤波：非递归
+                        B=[0.2, 0.2, 0.2, 0.2, 0.2]  # 5步移动平均，进一步平滑速度信号
+                    )
+                ]
+            )
+            # joint_pos = ObsTerm(func=mdp.joint_pos_rel)
+            # joint_vel = ObsTerm(func=mdp.joint_vel_rel)
+            pose_command = ObsTerm(
+                func=mdp.generated_commands, 
+                params={"command_name": "ee_pose"},
+                history_length=history_length,  # 新增：包含当前和前(history_length-1)步的命令
+                modifiers=[
+                    DigitalFilterCfg(
+                        A=[0.0],           # 移动平均滤波
+                        B=[0.5, 0.5]      # 2步移动平均，平滑命令变化
+                    )
+                ]
+            )
+            actions = ObsTerm(
+                func=mdp.last_action,
+                history_length=history_length,  # 新增：包含当前和前(history_length-1)步的动作
+                modifiers=[
+                    DigitalFilterCfg(
+                        A=[0.0],           # 移动平均滤波
+                        B=[0.5, 0.5]      # 2步移动平均，平滑动作输出
+                    )
+                ]
+            )
 
         def __post_init__(self):
-            self.enable_corruption = True
+            self.enable_corruption = True and randomization
             self.concatenate_terms = True
 
     # observation groups
@@ -142,6 +174,17 @@ class EventCfg:
             "velocity_range": (0.0, 0.0),
         },
     )
+
+    # randomize_end_effector_payload = EventTerm(
+    #     func=mdp.randomize_end_effector_payload,
+    #     mode="reset",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names=MISSING),
+    #         "mass_range": (0.1, 0.5),  # 0.1 to 0.5 kg payload
+    #         "operation": "add",
+    #         "distribution": "uniform",
+    #     },
+    # )
 
 
 @configclass
@@ -173,6 +216,18 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
 
+    # # end-effector velocity penalties (initially disabled, enabled via curriculum)
+    # end_effector_lin_vel = RewTerm(
+    #     func=mdp.end_effector_lin_vel_l2,
+    #     weight=0.0,  # Start with 0 weight, will be increased via curriculum
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING)},
+    # )
+    # end_effector_ang_vel = RewTerm(
+    #     func=mdp.end_effector_ang_vel_l2,
+    #     weight=0.0,  # Start with 0 weight, will be increased via curriculum
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING)},
+    # )
+
 
 @configclass
 class TerminationsCfg:
@@ -192,6 +247,14 @@ class CurriculumCfg:
     joint_vel = CurrTerm(
         func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.001, "num_steps": 4500}
     )
+
+    # # end-effector velocity penalties curriculum
+    # end_effector_lin_vel = CurrTerm(
+    #     func=mdp.modify_reward_weight, params={"term_name": "end_effector_lin_vel", "weight": -0.01, "num_steps": 20}
+    # )
+    # end_effector_ang_vel = CurrTerm(
+    #     func=mdp.modify_reward_weight, params={"term_name": "end_effector_ang_vel", "weight": -0.01, "num_steps": 20}
+    # )
 
 
 ##

@@ -7,6 +7,16 @@ from isaaclab.utils import configclass
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 
+model = 0
+if model == 0:
+    actor_hidden_dims = [64, 64]
+    critic_hidden_dims = [64, 64]
+elif model == 1:
+    actor_hidden_dims = [128, 128]
+    critic_hidden_dims = [128, 128]
+elif model == 2:
+    actor_hidden_dims = [256, 128, 64]
+    critic_hidden_dims = [256, 128, 64]
 
 @configclass
 class UR10ReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -19,8 +29,8 @@ class UR10ReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
-        actor_hidden_dims=[64, 64],
-        critic_hidden_dims=[64, 64],
+        actor_hidden_dims=actor_hidden_dims,
+        critic_hidden_dims=critic_hidden_dims,
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
@@ -30,12 +40,12 @@ class UR10ReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         entropy_coef=0.01,
         num_learning_epochs=8,
         num_mini_batches=4,
-        # learning_rate=1.0e-3,
-        learning_rate=5.0e-4,
+        learning_rate=1.0e-3,
+        # learning_rate=5.0e-4,
         schedule="adaptive",
         gamma=0.99,
         lam=0.95,
-        # desired_kl=0.01,
-        desired_kl=0.008,
+        desired_kl=0.01,
+        # desired_kl=0.008,
         max_grad_norm=1.0,
     )
