@@ -38,8 +38,8 @@ class UR10ReachEnvCfg(ReachEnvCfg):
         # # override end-effector velocity penalties
         # self.rewards.end_effector_lin_vel.params["asset_cfg"].body_names = ["ee_link"]
         # self.rewards.end_effector_ang_vel.params["asset_cfg"].body_names = ["ee_link"]
-        # # override end-effector payload randomization
-        # self.events.randomize_end_effector_payload.params["asset_cfg"].body_names = ["ee_link"]
+        # override end-effector payload randomization
+        self.events.randomize_end_effector_payload.params["asset_cfg"].body_names = ["ee_link"]
         # override actions
         self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True

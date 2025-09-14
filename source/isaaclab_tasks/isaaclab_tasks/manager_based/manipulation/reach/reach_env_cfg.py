@@ -90,7 +90,9 @@ class ActionsCfg:
     arm_action: ActionTerm = MISSING
     gripper_action: ActionTerm | None = None
 
-randomization = False
+randomization = True
+filter = False
+single_step = True
 
 @configclass
 class ObservationsCfg:
@@ -104,7 +106,19 @@ class ObservationsCfg:
             joint_vel = ObsTerm(func=mdp.joint_vel_rel)
             pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
             actions = ObsTerm(func=mdp.last_action)
-        else:       
+        elif not filter:
+            if single_step:
+                joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+                joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+                pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
+                actions = ObsTerm(func=mdp.last_action)
+            else:
+                history_length = 5
+                joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01), history_length=history_length)
+                joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01), history_length=history_length)
+                pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"}, history_length=history_length)
+                actions = ObsTerm(func=mdp.last_action, history_length=history_length)
+        else:
             history_length = 5
             # observation terms (order preserved)
             # 添加历史观察以减少噪声影响
@@ -175,16 +189,16 @@ class EventCfg:
         },
     )
 
-    # randomize_end_effector_payload = EventTerm(
-    #     func=mdp.randomize_end_effector_payload,
-    #     mode="reset",
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=MISSING),
-    #         "mass_range": (0.1, 0.5),  # 0.1 to 0.5 kg payload
-    #         "operation": "add",
-    #         "distribution": "uniform",
-    #     },
-    # )
+    randomize_end_effector_payload = EventTerm(
+        func=mdp.randomize_end_effector_payload,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=MISSING),
+            "mass_range": (0.1, 0.5),  # 0.1 to 0.5 kg payload
+            "operation": "add",
+            "distribution": "uniform",
+        },
+    )
 
 
 @configclass
