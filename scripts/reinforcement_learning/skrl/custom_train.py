@@ -100,7 +100,7 @@ if version.parse(skrl.__version__) < version.parse(SKRL_VERSION):
 #     from skrl.utils.runner.torch import Runner
 # elif args_cli.ml_framework.startswith("jax"):
 #     from skrl.utils.runner.jax import Runner
-
+from custom_runner import Runner
 from isaaclab.envs import (
     DirectMARLEnv,
     DirectMARLEnvCfg,
